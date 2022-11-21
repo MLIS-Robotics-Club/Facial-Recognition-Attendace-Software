@@ -27,6 +27,7 @@ def find_encodings(img_file_location: str) -> np.ndarray:
 
     return img_encoding
 
+
 def find_names_encodings(img_data: list) -> tuple[list, list]:
     """
     Function that when given a list of directories in the current direction, will
@@ -45,8 +46,17 @@ def find_names_encodings(img_data: list) -> tuple[list, list]:
         encodings_exist = True
 
     all_face_encodings = {}
+    file_names = {}
     encodings = []
     names = []
+
+    if encodings_exist:
+        with open("face_encodings_data.dat", "rb") as data_file:
+            all_face_encodings = pickle.load(data_file)
+
+        # if encodings do exist, it is safe to assume that so will file names data
+        with open("file_names_data.dat", "rb") as data_file:
+            file_names = pickle.load(data_file)
 
     for person in persons:
         person_imgs = os.listdir(f"{IMG_DATA_DIR}/{person}")
@@ -54,18 +64,31 @@ def find_names_encodings(img_data: list) -> tuple[list, list]:
         for person_img in person_imgs:
             name = os.path.splitext(person)[0]
 
-            if not encodings_exist:
-                # If previous face encodings do not exist, we'll proceed to create new encodings
-                all_face_encodings[name] = find_encodings(f"{IMG_DATA_DIR}/{person}/{person_img}")
-
-                # We'll then use the pickle library to dump the face encodings to a data file
-                with open("face_encodings_data.dat", "wb") as data_file:
-                    pickle.dump(all_face_encodings, data_file)
+            if name not in np.array(list(all_face_encodings.keys())):
+                # If the name of the person does not exist, that means it's a new person
+                # So, we save their first image encodings and filename
+                all_face_encodings[name] = find_encodings(
+                    f"{IMG_DATA_DIR}/{person}/{person_img}"
+                )
+                file_names[name] = [person_img]
+                print(f"New person, {name}, is added")
 
             else:
-                # If previous face encodings do exist, we simply use the pickle library to load them into memory
-                with open("face_encodings_data.dat", "rb") as data_file:
-                    all_face_encodings = pickle.load(data_file)
+                # If the person already has encodings, we'll look for additional images of the same person
+                # and encode those faces as well and connect the new encodings to the person
+                if person_img not in file_names[name]:
+                    nth_img_encodings = find_encodings(
+                        f"{IMG_DATA_DIR}/{person}/{person_img}"
+                    )
+                    np.concatenate([all_face_encodings[name], nth_img_encodings])
+                    file_names[name].append(person_img)
+                    print(f"New image {person_img} encodings was added for {name}")
+
+    with open("face_encodings_data.dat", "wb") as data_file:
+        pickle.dump(all_face_encodings, data_file)
+
+    with open("file_names_data.dat", "wb") as data_file:
+        pickle.dump(file_names, data_file)
 
     encodings = np.array(list(all_face_encodings.values()))
     names = np.array(list(all_face_encodings.keys()))
