@@ -13,6 +13,10 @@ from sklearn import svm
 
 IMG_DATA_DIR = "Data"
 
+# We'll check if the Data directory exists or not
+if not os.path.isdir(IMG_DATA_DIR):
+    os.mkdir(IMG_DATA_DIR)  # and create one if it does not
+
 
 def find_encodings(img_file_location: str) -> np.ndarray:
     """
@@ -97,7 +101,10 @@ def find_names_encodings(img_data: list) -> tuple[list, list]:
 
 
 img_data_obj = os.listdir(IMG_DATA_DIR)
-encodings, names = find_names_encodings(img_data_obj)
+if len(img_data_obj) == 0:
+    print("We need images of people to get work done")
+else:
+    encodings, names = find_names_encodings(img_data_obj)
 
 # Using SVM to fit the training data to train our model
 clf = svm.SVC(gamma="scale", probability=True)
